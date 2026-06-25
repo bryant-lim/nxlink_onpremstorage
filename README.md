@@ -2,6 +2,8 @@
 
 This repository provides an on-premises recording storage and management portal for NXLink CCaaS (Contact Center as a Service). It allows you to automatically download, store, and manage voice recordings locally based on configurable rules.
 
+> **Note:** Currently, this system only supports **audio file download and playback**. Support for downloading voice transcriptions and digital conversations will be added in future updates.
+
 ## Features
 
 - **Automated Downloads**: Set up flexible rules (based on agents, call direction, duration) to automatically fetch recordings from the NXLink API and store them locally.

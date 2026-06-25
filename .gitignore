@@ -7,3 +7,6 @@ build
 *.log
 coverage
 .DS_Store
+
+packages/server/recordings
+packages/server/logs
