@@ -1,0 +1,252 @@
+•	URL：https://api-hk.nxlink.ai/saas/cc/openapi/cdr/page
+•	Method：POST
+•	Content-Type：application/json
+•	Authentication required: Yes`
+Service Access Points
+NXLink has deployed multiple service regions globally. Please select the corresponding service access point based on your business location. Different regions use different website domains and API gateway domains.
+
+Code	Region	NXLink Website	API Gateway
+APAC	Hong Kong	https://app.nxlink.ai	https://api-hk.nxlink.ai
+AMER	Americas	https://chl-nxlink.nxcloud.com	https://chl-api.nxlink.ai
+APAC(IDN)	Indonesia	https://idn.nxlink.ai	https://api-idn.nxlink.ai
+
+Authentication Mechanism
+For authentication rules, please refer to: API Interface Call Agreement
+
+Request Parameters
+
+header：
+
+Parameter Name	Type	Required	Example Value	Description
+accessKey	String	Y	Prefix starting with AK	The corresponding Access Key can be found in AI Hub under Integrations menu on the NXLINK platform.
+ts	String	Y	1655710885431	Timestamp of the current request (in milliseconds). The NX server allows a maximum time error of 60 seconds for client requests.
+bizType	String	Y	8	Business type, fixed value “8”
+action	String	Y	cc	Business operation, fixed value “cc”
+sign	String	Y	6e9506557d1f289501d333ee2c365826	API parameter signature, Signature Algorithm
+
+body：
+Parameter Name	Type	Required	Example Value	Description
+answered	Integer	N	0	Whether answered: 0 all, 1 not answered, 2 answered
+direction	Integer	N	0	Call direction: 0 all, 1 inbound, 2 outbound, 3 AICC
+startTime	Long	Y	1678894227239	Start time (timestamp in seconds)
+endTime	Long	Y	1678894227239	End time (timestamp in seconds)
+name	String	N	“NX0001”	Employee account / Agent account
+caller	String	N	“4444”	Caller number
+callee	String	N	“4444”	Callee number
+callId	String	N	“032f4f81cc7a4e5a902e41f511fbf0e9”	callId
+orderId	String	N	“033f4f81cc7a4e5a902e41f511fbf010”	orderId
+size	Integer	Y	100	Page size (maximum 100)
+page	Integer	Y	1	Page number (starting from 1)
+
+Request Example
+body（application/json） parameters：
+{
+  "startTime": 1688140800,
+  "endTime": 1690819200,
+  "answered": true,
+  "direction": 1,
+  "name": "NX0001",
+  "caller": "4444",
+  "callee": "4444",
+  "orderId": "1222222",
+  "size": 100,
+  "page": 1
+}
+
+Response Parameters
+Parameter Name	Type	Description
+code	Integer	Result code
+data	Object	Request result
+msg	String	Description of result
+
+Successful Request
+•	data parameters:
+Parameter Name	Type	Description
+agentName	String	Agent account, might be empty
+agentNickName	String	Agent nickname, might be empty
+answered	Boolean	Whether answered
+answerTime	Long	Call answered time (timestamp in milliseconds)
+callDuration	Integer	Call duration
+callee	String	Callee number
+caller	String	Caller number
+callId	String	Call ID
+orderId	String	Order ID
+direction	Integer	Call direction, 0: inbound, 1: outbound, 2: AICC
+dtmfKeys	String	DTMF keys, separated by commas if multiple
+endTime	Long	Call end time (timestamp in milliseconds)
+hangupBy	Integer	Hangup by, 0: agent, 1: user, 2: unknown
+hangupCode	Integer	Hangup reason code
+callStatus	String	Call status
+hangupReason	String	Hangup reason description
+inQueueTime	Long	Queue entry time (timestamp in milliseconds)
+leaveMsgUrl	String	Voicemail URL
+orderId	String	Order ID
+other	String	Pass-through information
+intent	String	Intent name
+outQueueTime	Long	Queue exit time (timestamp in milliseconds)
+queueDuration	Integer	Queue duration (in seconds)
+recordUrl	String	Recording URL
+ringDuration	Integer	Ring duration (in seconds)
+ringTime	Long	Ring start time (timestamp in milliseconds)
+startTime	Long	Call start time (timestamp in milliseconds)
+taskId	String	Task ID, displayed for AICC tasks (direction=2)
+totalCustomerPrice	BigDecimal	Total cost
+lineIp	String	Line IP
+mediaIp	String	Media Ip Reserved, currently null
+termSipCode	Integer	line return sipcode
+hangupCause	String	line return hangupCause
+mos	BigDecimal	The MOS value of speech quality
+
+Response Example
+
+Success Example
+{
+    "reqId": "a23738fb613d889026fa2c8f4e4378f1",
+    "code": 0,
+    "msg": "success",
+    "data": [
+        {
+            "agentName": null,
+            "agentNickName": null,
+            "answered": false,
+            "answerTime": 0,
+            "callDuration": 0,
+            "callee": "85235757580",
+            "caller": "85215236100",
+            "callId": "63b09b9a163616c6c009cb326",
+            "direction": 0,
+            "dtmfKeys": null,
+            "endTime": 1690442498901,
+            "hangupBy": 0,
+            "hangupCode": 1103,
+            "callStatus": "呼入未接",
+            "hangupReason": "用户排队放弃",
+            "inQueueTime": 1690442492861,
+            "leaveMsgUrl": null,
+            "orderId": "",
+            "other": null,
+            "intent": null,
+            "outQueueTime": 1690442498000,
+            "queueDuration": 5139,
+            "recordUrl": null,
+            "ringDuration": 6,
+            "ringTime": 1690442492000,
+            "startTime": 1690442492841,
+            "taskId": "",
+            "totalCustomerPrice": 0.035,
+            "lineIp": "127.0.0.1",
+            "mediaIp": "",
+            "termSipCode": 487,
+            "hangupCause": "ORIGINATOR_CANCEL",
+            "mos": 4.4200
+        },
+        {
+            "agentName": "NX094450006938",
+            "agentNickName": "示例坐席",
+            "answered": true,
+            "answerTime": 1690423244000,
+            "callDuration": 5,
+            "callee": "85235757568",
+            "caller": "85238531117",
+            "callId": "6605fcd9563616c6c009c6240",
+            "direction": 0,
+            "dtmfKeys": null,
+            "endTime": 1690423248124,
+            "hangupBy": 1,
+            "hangupCode": 1001,
+            "callStatus": "正常结束",
+            "hangupReason": "坐席挂断",
+            "inQueueTime": 1690423237744,
+            "leaveMsgUrl": null,
+            "orderId": "",
+            "other": null,
+            "intent": null,
+            "outQueueTime": 1690423244000,
+            "queueDuration": 6,
+            "recordUrl": "https://*********.mp3",
+            "ringDuration": 7,
+            "ringTime": 1690423237000,
+            "startTime": 1690423237704,
+            "taskId": "",
+            "totalCustomerPrice": 0.035,
+            "lineIp": "127.0.0.1",
+            "mediaIp": "",
+            "termSipCode": 487,
+            "hangupCause": "ORIGINATOR_CANCEL",
+            "mos": 4.4200
+        }
+    ]
+}
+
+Failure Example
+{
+  "reqId": "FFDD1791E22F4D9DBA967C245C58E544",
+  "code": 41000,
+  "msg": "End date cannot be empty",
+  "data": {}
+}
+
+Response Code Description
+code	message	Resolution
+0	Request successful	
+88	Request failed	Please contact technical support to resolve the issue
+99	System error	Please contact technical support to resolve the issue
+1000~100X	Authentication failed	See the API Authentication section for details
+
+Hangup Code Meanings
+
+Hangup Code	Type	Description
+1000	Inbound	Normal end
+1001	Inbound	Normal end - Agent hung up
+1002	Inbound	Normal end - User hung up
+1003	Inbound	Normal end - Voicemail
+1004	Inbound	Normal end - Network interruption
+10031	Inbound	Normal end - Voicemail - All agents busy
+10032	Inbound	Normal end - Voicemail - No agent online
+1101	Inbound	Missed call - Agent quickly hung up
+1102	Inbound	Missed call - User quickly hung up
+1103	Inbound	Missed call - User abandoned the queue
+11031	Inbound	Missed call - User abandoned the queue - All agents busy
+11032	Inbound	Missed call - User abandoned the queue - No agent online
+1104	Inbound	Missed call - User exceeded queue timeout
+11041	Inbound	Missed call - User exceeded queue timeout - All agents busy
+11042	Inbound	Missed call - User exceeded queue timeout - No agent online
+1105	Inbound	Missed call - No agent online
+1106	Inbound	Missed call - All agents busy
+1107	Inbound	Missed call - Blacklisted number
+1108	Inbound	Missed call - User canceled
+1109	Inbound	Incoming call forwarded to external number - external line hang-up
+1110	Inbound	Incoming call forwarded to external number - Call exception
+1111	Inbound	Incoming call forwarded to external number - User hung up
+2000	Outbound	Normal end
+2001	Outbound	Normal end - Agent hung up
+2002	Outbound	Normal end - User hung up
+2003	Outbound	Normal end - Agent canceled
+2004	Outbound	Normal end - Network interruption
+2101	Outbound	Missed call - Agent quickly hung up
+2102	Outbound	Missed call - User quickly hung up
+2103	Outbound	Missed call - User rejected call
+2104	Outbound	Missed call - Timeout
+2105	Outbound	Missed call - Blacklisted number
+2106	Outbound	Missed call - Call restriction number
+2107	Outbound	Missed call - Call restriction (experience count)
+2201	Outbound	Unable to connect - Call refused
+2202	Outbound	Unable to connect - Temporarily unable to connect
+2203	Outbound	Unable to connect - Line busy
+2204	Outbound	Unable to connect - Call exception
+2205	Outbound	Unable to connect - Unable to connect
+2206	Outbound	Unable to connect - Agent cancel
+3000	AICC	Normal end
+3001	AICC	Transfer to human successful - Agent hung up
+3002	AICC	Transfer to human successful - User hung up
+3003	AICC	Transfer to human successful-Network interruption
+3101	AICC	Transfer to human failed - Agent quickly hung up
+3102	AICC	Transfer to human failed - User quickly hung up
+3103	AICC	Transfer to human failed - User abandoned the queue
+3104	AICC	Transfer to human failed - User exceeded queue timeout
+31041	AICC	Transfer to human failed - User exceeded queue timeout - All agents busy
+31042	AICC	Transfer to human failed - User exceeded queue timeout - No agent online
+3105	AICC	Transfer to human failed - No agent online
+3106	AICC	Transfer to human failed - All agents busy
+3107	AICC	Transfer to human failed - User canceled
+

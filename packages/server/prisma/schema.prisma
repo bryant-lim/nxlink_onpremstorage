@@ -1,0 +1,256 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  username     String    @unique @db.VarChar(100)
+  passwordHash String    @db.VarChar(255)
+  email        String?   @db.VarChar(255)
+  role         String    @default("viewer") @db.VarChar(20)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  downloadRules     DownloadRule[]    @relation("RuleCreator")
+  downloadLogs      DownloadLog[]     @relation("TriggeredByUser")
+  userPreference    UserPreference?
+  auditLogs         AuditLog[]
+  playbackLogs      PlaybackLog[]
+  userRoles         UserRole[]
+  userAgents        UserAgent[]
+}
+
+model ApiConfig {
+  id         BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  name       String   @db.VarChar(100)
+  region     String   @db.VarChar(20)
+  apiGateway String   @db.VarChar(255)
+  accessKey  String   @db.VarChar(255)
+  secretKey  String   @db.VarChar(255)
+  bizType    String   @default("8") @db.VarChar(10)
+  action     String   @default("cc") @db.VarChar(10)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  cdrRecords CdrRecord[]
+}
+
+model DownloadRule {
+  id           BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  name         String    @db.VarChar(200)
+  agentNames   Json?
+  directions   Json?
+  answeredOnly Boolean   @default(false)
+  minDuration  Int?
+  isActive     Boolean   @default(true)
+  createdById  BigInt?   @db.UnsignedBigInt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  createdBy    User?         @relation("RuleCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  downloadLogs DownloadLog[]
+}
+
+model SchedulerConfig {
+  id             BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  cronExpression String   @default("0 */6 * * *") @db.VarChar(50)
+  lookbackHours  Int      @default(24)
+  pageSize       Int      @default(100)
+  storagePath    String   @db.VarChar(500)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model CdrRecord {
+  id                 BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  orderId            String?  @db.VarChar(100)
+  callId             String   @unique @db.VarChar(100)
+  agentName          String?  @db.VarChar(100)
+  agentNickName      String?  @db.VarChar(100)
+  caller             String?  @db.VarChar(50)
+  callee             String?  @db.VarChar(50)
+  direction          Int?
+  answered           Boolean?
+  callStatus         String?  @db.VarChar(100)
+  startTime          BigInt?
+  endTime            BigInt?
+  answerTime         BigInt?
+  ringTime           BigInt?
+  callDuration       Int?
+  ringDuration       Int?
+  queueDuration      Int?
+  hangupBy           Int?
+  hangupCode         Int?
+  hangupReason       String?  @db.VarChar(255)
+  recordUrl          String?  @db.VarChar(1000)
+  leaveMsgUrl        String?  @db.VarChar(1000)
+  mos                Decimal? @db.Decimal(4, 2)
+  totalCustomerPrice Decimal? @db.Decimal(10, 4)
+  lineIp             String?  @db.VarChar(50)
+  apiConfigId        BigInt?  @db.UnsignedBigInt
+  syncedAt           DateTime @default(now())
+
+  apiConfig    ApiConfig?    @relation(fields: [apiConfigId], references: [id], onDelete: SetNull)
+  downloadLogs DownloadLog[]
+  playbackLogs PlaybackLog[]
+
+  @@index([agentName])
+  @@index([startTime])
+  @@index([direction])
+}
+
+model DownloadLog {
+  id                BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  cdrId             BigInt    @db.UnsignedBigInt
+  ruleId            BigInt?   @db.UnsignedBigInt
+  status            String    @default("pending") @db.VarChar(20)
+  filePath          String?   @db.VarChar(1000)
+  fileSize          BigInt?
+  errorMessage      String?   @db.Text
+  retryCount        Int       @default(0)
+  triggeredBy       String    @default("scheduler") @db.VarChar(20)
+  triggeredByUserId BigInt?   @db.UnsignedBigInt
+  startedAt         DateTime?
+  completedAt       DateTime?
+  createdAt         DateTime  @default(now())
+
+  cdr               CdrRecord     @relation(fields: [cdrId], references: [id], onDelete: Cascade)
+  rule              DownloadRule? @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+  triggeredByUser   User?         @relation("TriggeredByUser", fields: [triggeredByUserId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([cdrId])
+}
+
+model DailyLog {
+  id                        BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  logDate                   DateTime @unique @db.Date
+  totalCdrsSynced           Int      @default(0)
+  totalDownloadsAttempted   Int      @default(0)
+  totalDownloadsSuccess     Int      @default(0)
+  totalDownloadsFailed      Int      @default(0)
+  totalDownloadsSkipped     Int      @default(0)
+  totalSizeBytes            BigInt   @default(0)
+  details                   Json?
+  createdAt                 DateTime @default(now())
+}
+
+model UserPreference {
+  id             BigInt  @id @default(autoincrement()) @db.UnsignedBigInt
+  userId         BigInt  @unique @db.UnsignedBigInt
+  visibleColumns Json
+  columnOrder    Json?
+  pageSize       Int     @default(20)
+
+  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Agent {
+  id        BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  name      String   @unique @db.VarChar(100)
+  nickname  String?  @db.VarChar(100)
+  group     String?  @db.VarChar(100)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([group])
+  userAgents        UserAgent[]
+}
+
+model AuditLog {
+  id         BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  userId     BigInt?  @db.UnsignedBigInt
+  action     String   @db.VarChar(50)
+  entityType String?  @db.VarChar(50)
+  entityId   BigInt?  @db.UnsignedBigInt
+  details    Json?
+  ipAddress  String?  @db.VarChar(50)
+  userAgent  String?  @db.VarChar(500)
+  createdAt  DateTime @default(now())
+
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([action])
+  @@index([createdAt])
+  @@index([userId])
+}
+
+model PlaybackLog {
+  id             BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  userId         BigInt?  @db.UnsignedBigInt
+  cdrId          BigInt?  @db.UnsignedBigInt
+  callId         String?  @db.VarChar(100)
+  playedAt       DateTime @default(now())
+  durationPlayed Int?
+
+  user           User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  cdr            CdrRecord?  @relation(fields: [cdrId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([playedAt])
+}
+
+model Role {
+  id          BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  name        String   @unique @db.VarChar(50)
+  description String?  @db.VarChar(255)
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  permissions RolePermission[]
+  users       UserRole[]
+}
+
+model Permission {
+  id          BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  key         String   @unique @db.VarChar(50)
+  category    String   @db.VarChar(50)
+  label       String   @db.VarChar(100)
+  description String?  @db.VarChar(255)
+
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  id           BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  roleId       BigInt   @db.UnsignedBigInt
+  permissionId BigInt   @db.UnsignedBigInt
+
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+}
+
+model UserRole {
+  id     BigInt @id @default(autoincrement()) @db.UnsignedBigInt
+  userId BigInt @db.UnsignedBigInt
+  roleId BigInt @db.UnsignedBigInt
+
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+}
+
+model UserAgent {
+  id      BigInt @id @default(autoincrement()) @db.UnsignedBigInt
+  userId  BigInt @db.UnsignedBigInt
+  agentId BigInt @db.UnsignedBigInt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, agentId])
+}

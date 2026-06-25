@@ -1,0 +1,72 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: callvault-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-callvault}
+      MYSQL_USER: ${MYSQL_USER:-callvault_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-callvault_password}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - callvault
+
+  server:
+    build:
+      context: .
+      dockerfile: packages/server/Dockerfile
+    container_name: callvault-server
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: mysql://${MYSQL_USER:-callvault_user}:${MYSQL_PASSWORD:-callvault_password}@mysql:3306/${MYSQL_DATABASE:-callvault}
+      PORT: 3009
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3008}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      RECORDINGS_PATH: /app/recordings
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "3009:3009"
+    volumes:
+      - recordings_data:/app/recordings
+      - logs_data:/app/logs
+    depends_on:
+      mysql:
+        condition: service_healthy
+    command: sh -c "npx prisma migrate deploy --schema=./prisma/schema.prisma && node dist/server/src/index.js"
+    networks:
+      - callvault
+
+  web:
+    build:
+      context: .
+      dockerfile: packages/web/Dockerfile
+    container_name: callvault-web
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3009/api}
+    ports:
+      - "3008:3008"
+    depends_on:
+      - server
+    networks:
+      - callvault
+
+volumes:
+  mysql_data:
+  recordings_data:
+  logs_data:
+
+networks:
+  callvault:
+    driver: bridge
