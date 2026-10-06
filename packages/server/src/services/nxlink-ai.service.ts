@@ -234,13 +234,22 @@ export class NxlinkAiService {
 
         let audioUrl: string | null = conv.call_audio_url || conv.callAudioUrl || null;
 
-        // If audio url is not on conversation header, query messages
-        if (!audioUrl) {
+        // In NXLink CCaaS:
+        // source === 1: Telephony / Voice Bot (SIP gateway call)
+        // source === 3: IM / Digital Channel (e.g. Web chat widget, WhatsApp text conversation)
+        // Only query messages for audio fallback if not already present and source is not digital chat
+        if (!audioUrl && conv.source !== 3) {
           try {
             audioUrl = await this.fetchConversationAudioUrl(String(convId));
           } catch (e: any) {
             logger.warn(`[Nxlink AI] Could not fetch audio URL for bot conversation ${convId}: ${e.message}`);
           }
+        }
+
+        // Filter out digital conversations: CallVault is a Voice Recording system.
+        // Sessions without audio are digital text chats and should not be ingested.
+        if (!audioUrl) {
+          continue;
         }
 
         let tags: string[] = [];

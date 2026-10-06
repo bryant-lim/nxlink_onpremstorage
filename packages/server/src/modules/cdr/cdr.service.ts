@@ -60,6 +60,23 @@ export class CdrService {
   ): Promise<CdrSyncResult> {
     logger.info(`Starting AI Voice Bot sync: ${startTime} - ${endTime}`);
 
+    // Clean up any historical digital conversation records that have no audio recording URL
+    try {
+      const deleted = await prisma.cdrRecord.deleteMany({
+        where: {
+          recordingType: "ai_bot",
+          recordUrl: null,
+        },
+      });
+      if (deleted.count > 0) {
+        logger.info(
+          `[Nxlink AI] Cleaned up ${deleted.count} historical digital conversation records without audio.`,
+        );
+      }
+    } catch (cleanErr: any) {
+      logger.warn(`[Nxlink AI] Failed to clean up digital records: ${cleanErr.message}`);
+    }
+
     const records = await aiService.fetchAllConversations({
       startTimeSeconds: startTime,
       endTimeSeconds: endTime,
@@ -129,6 +146,12 @@ export class CdrService {
     if (params.recordingType && params.recordingType !== "all") {
       where.recordingType = params.recordingType;
     }
+
+    // Exclude digital AI bot conversations that have no audio recording URL
+    where.NOT = {
+      recordingType: "ai_bot",
+      recordUrl: null,
+    };
 
     // Agent access filter
     if (params.userId !== undefined) {
