@@ -25,15 +25,23 @@ export class DownloadService {
     recordingType?: string | null;
     startTime: bigint | null;
   }): string {
-    const date = cdr.startTime ? new Date(Number(cdr.startTime)) : new Date();
-    const year = date.getFullYear();
-    const monthDay = `${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    const d = cdr.startTime ? new Date(Number(cdr.startTime)) : new Date();
+    const tz = process.env.TZ || "Asia/Kuala_Lumpur";
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    const parts = formatter.format(d).split("-");
+    const year = parts[0];
+    const monthDay = `${parts[1]}-${parts[2]}`;
     const subFolder = cdr.recordingType === "ai_bot" ? "ai_bot" : (cdr.agentName || "agent");
     const ext = isEncryptionEnabled() ? "mp3.enc" : "mp3";
 
     return path.join(
       this.storageRoot,
-      String(year),
+      year,
       monthDay,
       subFolder,
       `${cdr.callId}.${ext}`,

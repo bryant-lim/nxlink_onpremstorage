@@ -39,6 +39,7 @@ services:
       LOG_STDOUT_ENABLED: ${LOG_STDOUT_ENABLED:-true}
       LOG_STDERR_ENABLED: ${LOG_STDERR_ENABLED:-true}
       LOG_CONSOLE_ENABLED: ${LOG_CONSOLE_ENABLED:-true}
+      TZ: ${TZ:-Asia/Kuala_Lumpur}
     ports:
       - "3009:3009"
     volumes:
