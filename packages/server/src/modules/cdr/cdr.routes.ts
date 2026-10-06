@@ -111,13 +111,17 @@ router.post("/sync", authenticate, async (req: AuthRequest, res) => {
     const result = await cdrService.syncFromApi(apiService, startTime, endTime);
 
     // AI Voice Bot sync if configured
-    const aiTokenUrl = activeConfig.aiTokenUrl || process.env.NXAI_TOKEN_URL;
+    const hasAiAuth =
+      activeConfig.platToken ||
+      activeConfig.aiTokenUrl ||
+      process.env.NXAI_TOKEN_URL;
     let botResult = { synced: 0, updated: 0, total: 0 };
-    if (aiTokenUrl) {
+    if (hasAiAuth) {
       try {
         const aiService = new NxlinkAiService({
-          aiTokenUrl,
+          aiTokenUrl: activeConfig.aiTokenUrl,
           aiAppUrl: activeConfig.aiAppUrl || "https://app.nxlink.ai",
+          platToken: activeConfig.platToken,
         });
         botResult = await cdrService.syncAiBotFromApi(aiService, startTime, endTime);
       } catch (botErr: any) {

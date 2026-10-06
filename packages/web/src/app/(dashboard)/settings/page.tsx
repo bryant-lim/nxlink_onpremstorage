@@ -10,6 +10,7 @@ interface ApiConfig {
   apiGateway: string;
   aiTokenUrl?: string | null;
   aiAppUrl?: string | null;
+  platToken?: string | null;
   isActive: boolean;
   createdAt: string;
 }
@@ -56,7 +57,13 @@ export default function SettingsPage() {
     action: "cc",
     aiTokenUrl: "",
     aiAppUrl: "",
+    platToken: "",
   });
+  const [genEmail, setGenEmail] = useState("");
+  const [genPassword, setGenPassword] = useState("");
+  const [generatingToken, setGeneratingToken] = useState(false);
+  const [tokenGenSuccess, setTokenGenSuccess] = useState("");
+  const [tokenGenError, setTokenGenError] = useState("");
   const [schedulerForm, setSchedulerForm] = useState({
     cronExpression: "0 */6 * * *",
     lookbackHours: 24,
@@ -149,11 +156,58 @@ export default function SettingsPage() {
         action: "cc",
         aiTokenUrl: "",
         aiAppUrl: "",
+        platToken: "",
       });
+      setTokenGenSuccess("");
+      setTokenGenError("");
       fetchData();
       setSuccess("API configuration saved");
     } catch {
       setError("Network error");
+    }
+  };
+
+  const handleGenerateAiToken = async () => {
+    if (!genEmail || !genPassword) {
+      setTokenGenError("Please enter NXLink admin email and password");
+      return;
+    }
+    setGeneratingToken(true);
+    setTokenGenError("");
+    setTokenGenSuccess("");
+    const token = localStorage.getItem("accessToken");
+    try {
+      const host = apiForm.aiAppUrl || "https://app.nxlink.ai";
+      const res = await fetch(
+        "http://localhost:3009/api/configs/generate-ai-token",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            email: genEmail,
+            password: genPassword,
+            host,
+          }),
+        },
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        setTokenGenError(data.error || "Failed to generate token");
+        return;
+      }
+      setApiForm((prev) => ({
+        ...prev,
+        platToken: data.token,
+      }));
+      setTokenGenSuccess("Token generated and applied");
+      setGenPassword("");
+    } catch {
+      setTokenGenError("Network error while generating token");
+    } finally {
+      setGeneratingToken(false);
     }
   };
 
@@ -360,7 +414,10 @@ export default function SettingsPage() {
                   action: "cc",
                   aiTokenUrl: "",
                   aiAppUrl: "",
+                  platToken: "",
                 });
+                setTokenGenSuccess("");
+                setTokenGenError("");
               }}
               className="rounded bg-green-600 px-4 py-2 text-sm text-white transition hover:bg-green-700"
             >
@@ -469,24 +526,14 @@ export default function SettingsPage() {
                   />
                 </div>
                 <div className="sm:col-span-2 border-t pt-4 mt-2">
-                  <h3 className="text-sm font-semibold text-gray-800 mb-1">AI Voice Bot Settings (Optional)</h3>
-                  <p className="text-xs text-gray-500 mb-3">Required only if syncing and downloading AI Voice Bot recordings via Flow Manager.</p>
+                  <h3 className="text-sm font-semibold text-gray-800 mb-1">
+                    AI Voice Bot Settings (Optional)
+                  </h3>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Required only for syncing AI Voice Bot recordings via Flow Manager.
+                  </p>
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div>
-                      <label className="mb-1 block text-sm font-medium text-gray-700">
-                        AI Token URL
-                      </label>
-                      <input
-                        type="url"
-                        value={apiForm.aiTokenUrl}
-                        onChange={(e) =>
-                          setApiForm({ ...apiForm, aiTokenUrl: e.target.value })
-                        }
-                        placeholder="https://.../get_plat_token?access_key=..."
-                        className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
-                      />
-                    </div>
-                    <div>
+                    <div className="sm:col-span-2">
                       <label className="mb-1 block text-sm font-medium text-gray-700">
                         AI App URL
                       </label>
@@ -497,6 +544,89 @@ export default function SettingsPage() {
                           setApiForm({ ...apiForm, aiAppUrl: e.target.value })
                         }
                         placeholder="https://app.nxlink.ai"
+                        className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-2 rounded border border-gray-200 bg-gray-50 p-4">
+                      <div className="mb-3">
+                        <span className="text-sm font-medium text-gray-800">
+                          Generate Token with NXLink Credentials
+                        </span>
+                        <p className="text-xs text-gray-500">
+                          Authenticates directly with NXLink to generate and apply a live plat_token.
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-gray-600">
+                            NXLink Admin Email / Account
+                          </label>
+                          <input
+                            type="text"
+                            value={genEmail}
+                            onChange={(e) => setGenEmail(e.target.value)}
+                            placeholder="admin@company.com"
+                            className="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-gray-600">
+                            NXLink Password
+                          </label>
+                          <input
+                            type="password"
+                            value={genPassword}
+                            onChange={(e) => setGenPassword(e.target.value)}
+                            placeholder="••••••••"
+                            className="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm"
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-3 flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={handleGenerateAiToken}
+                          disabled={generatingToken || !genEmail || !genPassword}
+                          className="rounded bg-slate-800 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-slate-700 disabled:opacity-50"
+                        >
+                          {generatingToken ? "Generating..." : "Generate Token"}
+                        </button>
+                        {tokenGenSuccess && (
+                          <span className="text-xs text-emerald-700">{tokenGenSuccess}</span>
+                        )}
+                        {tokenGenError && (
+                          <span className="text-xs text-red-600">{tokenGenError}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <label className="mb-1 block text-sm font-medium text-gray-700">
+                        Generated / Custom plat_token
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={apiForm.platToken}
+                        onChange={(e) =>
+                          setApiForm({ ...apiForm, platToken: e.target.value })
+                        }
+                        placeholder="Live NXLink plat_token JWT (auto-filled by generator above, or paste manually)"
+                        className="w-full font-mono text-xs rounded border border-gray-300 px-3 py-2"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <label className="mb-1 block text-sm font-medium text-gray-700">
+                        External AI Token URL (Optional Alternative)
+                      </label>
+                      <input
+                        type="url"
+                        value={apiForm.aiTokenUrl}
+                        onChange={(e) =>
+                          setApiForm({ ...apiForm, aiTokenUrl: e.target.value })
+                        }
+                        placeholder="https://.../get_plat_token"
                         className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
                       />
                     </div>
@@ -596,7 +726,10 @@ export default function SettingsPage() {
                               action: "cc",
                               aiTokenUrl: config.aiTokenUrl || "",
                               aiAppUrl: config.aiAppUrl || "",
+                              platToken: config.platToken || "",
                             });
+                            setTokenGenSuccess("");
+                            setTokenGenError("");
                           }}
                           className="mr-2 text-gray-600 hover:text-gray-800"
                         >

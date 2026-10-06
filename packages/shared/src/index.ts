@@ -20,6 +20,7 @@ export interface ApiConfig {
   apiGateway: string;
   aiTokenUrl?: string | null;
   aiAppUrl?: string | null;
+  platToken?: string | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;

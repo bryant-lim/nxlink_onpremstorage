@@ -37,6 +37,7 @@ model ApiConfig {
   action     String   @default("cc") @db.VarChar(10)
   aiTokenUrl String?  @db.VarChar(500)
   aiAppUrl   String?  @default("https://app.nxlink.ai") @db.VarChar(255)
+  platToken  String?  @db.Text
   isActive   Boolean  @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt

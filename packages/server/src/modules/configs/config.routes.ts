@@ -1,3 +1,5 @@
+import axios from "axios";
+import crypto from "crypto";
 import { Router } from "express";
 import { authenticate, authorize, AuthRequest } from "../../middleware/auth.js";
 import { prisma } from "../../config/database.js";
@@ -19,6 +21,7 @@ router.get("/", async (_req, res) => {
         apiGateway: true,
         aiTokenUrl: true,
         aiAppUrl: true,
+        platToken: true,
         isActive: true,
         createdAt: true,
         updatedAt: true,
@@ -49,6 +52,7 @@ router.post(
         action,
         aiTokenUrl,
         aiAppUrl,
+        platToken,
       } = req.body;
 
       if (!name || !region || !apiGateway || !accessKey || !accessSecret) {
@@ -66,6 +70,7 @@ router.post(
           action: action || "cc",
           aiTokenUrl: aiTokenUrl || null,
           aiAppUrl: aiAppUrl || "https://app.nxlink.ai",
+          platToken: platToken || null,
         },
         select: {
           id: true,
@@ -74,6 +79,7 @@ router.post(
           apiGateway: true,
           aiTokenUrl: true,
           aiAppUrl: true,
+          platToken: true,
           isActive: true,
           createdAt: true,
         },
@@ -106,6 +112,7 @@ router.patch(
         accessSecret,
         aiTokenUrl,
         aiAppUrl,
+        platToken,
         isActive,
       } = req.body;
 
@@ -123,6 +130,7 @@ router.patch(
       if (accessSecret !== undefined) updateData.secretKey = accessSecret;
       if (aiTokenUrl !== undefined) updateData.aiTokenUrl = aiTokenUrl;
       if (aiAppUrl !== undefined) updateData.aiAppUrl = aiAppUrl;
+      if (platToken !== undefined) updateData.platToken = platToken;
       if (isActive !== undefined) updateData.isActive = isActive;
 
       const updated = await prisma.apiConfig.update({
@@ -135,6 +143,7 @@ router.patch(
           apiGateway: true,
           aiTokenUrl: true,
           aiAppUrl: true,
+          platToken: true,
           isActive: true,
           updatedAt: true,
         },
@@ -178,6 +187,77 @@ router.delete(
     } catch (error) {
       logger.error(`Delete API config error: ${error}`);
       res.status(500).json({ error: "Internal server error" });
+    }
+  },
+);
+
+// Generate AI plat_token using NXLink Admin credentials
+router.post(
+  "/generate-ai-token",
+  authenticate,
+  authorize("admin"),
+  async (req: AuthRequest, res) => {
+    try {
+      const { email, password, host } = req.body;
+      if (!email || !password) {
+        return res
+          .status(400)
+          .json({ error: "Email/Account and Password are required" });
+      }
+
+      const targetHost = (host || "https://app.nxlink.ai").replace(/\/+$/, "");
+      const loginUrl = `${targetHost}/admin/saas_plat/user/login`;
+      const deviceUuid = crypto.randomUUID
+        ? crypto.randomUUID()
+        : Math.random().toString(36).substring(2);
+
+      const response = await axios.put(
+        loginUrl,
+        {
+          email,
+          password,
+          loginMethod: 0,
+          deviceType: "Browser",
+          deviceUniqueIdentification: deviceUuid,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            Origin: targetHost,
+            Referer: `${targetHost}/admin/`,
+          },
+          timeout: 15000,
+        },
+      );
+
+      const data = response.data;
+      if (data && data.code === 0 && data.data?.token) {
+        logger.info(
+          `Successfully generated AI plat_token for user: ${email} via ${targetHost}`,
+        );
+        return res.json({
+          success: true,
+          token: data.data.token,
+          tenantHost: targetHost,
+        });
+      }
+
+      const errorMsg =
+        data?.message ||
+        data?.msg ||
+        `Login failed (NXLink response code: ${data?.code ?? "unknown"})`;
+      logger.warn(`Failed to generate plat_token: ${errorMsg}`);
+      return res.status(400).json({ error: errorMsg });
+    } catch (error: any) {
+      logger.error(`Generate AI token error: ${error.message || error}`);
+      const msg =
+        error.response?.data?.message ||
+        error.response?.data?.msg ||
+        error.message ||
+        "Failed to authenticate with NXLink";
+      return res.status(500).json({ error: msg });
     }
   },
 );

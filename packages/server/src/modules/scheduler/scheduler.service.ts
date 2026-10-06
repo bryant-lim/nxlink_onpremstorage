@@ -138,13 +138,17 @@ export class SchedulerService {
       `[Scheduler #${runId}] CDR sync complete in ${syncElapsed}ms: ${syncResult.total} records (${syncResult.synced} new, ${syncResult.updated} updated)`,
     );
 
-    // AI Voice Bot Sync if token URL is configured
-    const aiTokenUrl = activeApiConfig.aiTokenUrl || process.env.NXAI_TOKEN_URL;
-    if (aiTokenUrl) {
+    // AI Voice Bot Sync if token URL or platToken is configured
+    const hasAiAuth =
+      activeApiConfig.platToken ||
+      activeApiConfig.aiTokenUrl ||
+      process.env.NXAI_TOKEN_URL;
+    if (hasAiAuth) {
       try {
         const aiService = new NxlinkAiService({
-          aiTokenUrl,
+          aiTokenUrl: activeApiConfig.aiTokenUrl,
           aiAppUrl: activeApiConfig.aiAppUrl || "https://app.nxlink.ai",
+          platToken: activeApiConfig.platToken,
         });
         const botSyncResult = await this.cdrService.syncAiBotFromApi(
           aiService,

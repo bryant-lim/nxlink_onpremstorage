@@ -4,6 +4,7 @@ import { logger } from "../utils/logger.js";
 export interface NxlinkAiConfig {
   aiTokenUrl?: string | null;
   aiAppUrl?: string | null;
+  platToken?: string | null;
 }
 
 export interface AiConversationRecord {
@@ -29,6 +30,7 @@ export class NxlinkAiService {
   constructor(config: NxlinkAiConfig) {
     this.appUrl = (config.aiAppUrl || "https://app.nxlink.ai").replace(/\/+$/, "");
     this.tokenUrl = config.aiTokenUrl || process.env.NXAI_TOKEN_URL || null;
+    this.cachedToken = config.platToken || null;
     this.client = axios.create({
       baseURL: this.appUrl,
       timeout: 30000,
@@ -36,13 +38,19 @@ export class NxlinkAiService {
   }
 
   async getPlatToken(forceRefresh = false): Promise<string | null> {
-    if (!this.tokenUrl) {
-      logger.warn("[Nxlink AI] No NXAI_TOKEN_URL configured");
-      return null;
-    }
-
     if (this.cachedToken && !forceRefresh) {
       return this.cachedToken;
+    }
+
+    if (!this.tokenUrl) {
+      if (this.cachedToken && forceRefresh) {
+        logger.warn(
+          "[Nxlink AI] plat_token expired (403) and no NXAI_TOKEN_URL is configured for auto-refresh. Please re-generate token in Settings.",
+        );
+      } else {
+        logger.warn("[Nxlink AI] No plat_token or NXAI_TOKEN_URL configured");
+      }
+      return null;
     }
 
     try {
