@@ -21,6 +21,7 @@ function safeParseArray<T>(val: unknown): T[] {
 interface Rule {
   id: number;
   name: string;
+  recordingType?: string | null;
   agentNames: string | string[] | null;
   directions: string | number[] | null;
   answeredOnly: boolean;
@@ -47,6 +48,7 @@ export default function RulesPage() {
   const [error, setError] = useState("");
   const [form, setForm] = useState({
     name: "",
+    recordingType: "all",
     selectedAgents: [] as string[],
     directions: [] as number[],
     answeredOnly: false,
@@ -106,6 +108,7 @@ export default function RulesPage() {
     const token = localStorage.getItem("accessToken");
     const body = {
       name: form.name,
+      recordingType: form.recordingType,
       agentNames: form.selectedAgents.length > 0 ? form.selectedAgents : null,
       directions: form.directions.length > 0 ? form.directions : null,
       answeredOnly: form.answeredOnly,
@@ -134,6 +137,7 @@ export default function RulesPage() {
       setEditingRule(null);
       setForm({
         name: "",
+        recordingType: "all",
         selectedAgents: [],
         directions: [],
         answeredOnly: false,
@@ -150,6 +154,7 @@ export default function RulesPage() {
     setEditingRule(rule);
     setForm({
       name: rule.name,
+      recordingType: rule.recordingType || "all",
       selectedAgents: safeParseArray<string>(rule.agentNames),
       directions: safeParseArray<number>(rule.directions),
       answeredOnly: rule.answeredOnly,
@@ -208,6 +213,7 @@ export default function RulesPage() {
             setEditingRule(null);
             setForm({
               name: "",
+              recordingType: "all",
               selectedAgents: [],
               directions: [],
               answeredOnly: false,
@@ -247,6 +253,22 @@ export default function RulesPage() {
                 className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
                 required
               />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Recording Type
+              </label>
+              <select
+                value={form.recordingType}
+                onChange={(e) =>
+                  setForm({ ...form, recordingType: e.target.value })
+                }
+                className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+              >
+                <option value="all">All Types</option>
+                <option value="agent">Agent Calls Only</option>
+                <option value="ai_bot">AI Voice Bot Only</option>
+              </select>
             </div>
             <div ref={dropdownRef}>
               <label className="mb-1 block text-sm font-medium text-gray-700">
@@ -415,6 +437,9 @@ export default function RulesPage() {
                 Name
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                Type
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                 Agents
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
@@ -438,7 +463,7 @@ export default function RulesPage() {
             {rules.length === 0 ? (
               <tr>
                 <td
-                  colSpan={7}
+                  colSpan={8}
                   className="px-6 py-8 text-center text-sm text-gray-500"
                 >
                   No rules configured
@@ -449,6 +474,15 @@ export default function RulesPage() {
                 <tr key={rule.id}>
                   <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
                     {rule.name}
+                  </td>
+                  <td className="whitespace-nowrap px-6 py-4 text-sm">
+                    {rule.recordingType === "ai_bot" ? (
+                      <span className="text-emerald-700 font-medium text-xs">AI Voice Bot</span>
+                    ) : rule.recordingType === "agent" ? (
+                      <span className="text-slate-600 font-medium text-xs">Agent Call</span>
+                    ) : (
+                      <span className="text-slate-500 text-xs">All</span>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
                     {(() => {

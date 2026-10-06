@@ -1,5 +1,6 @@
 import { prisma } from "../../config/database.js";
 import { NxlinkApiService } from "../../services/nxlink-api.service.js";
+import { NxlinkAiService, AiConversationRecord } from "../../services/nxlink-ai.service.js";
 import { NxlinkCdrResponse } from "@nxlink-vr/shared";
 import { logger } from "../../utils/logger.js";
 
@@ -52,9 +53,52 @@ export class CdrService {
     return { synced, updated, total: records.length };
   }
 
+  async syncAiBotFromApi(
+    aiService: NxlinkAiService,
+    startTime: number,
+    endTime: number,
+  ): Promise<CdrSyncResult> {
+    logger.info(`Starting AI Voice Bot sync: ${startTime} - ${endTime}`);
+
+    const records = await aiService.fetchAllConversations({
+      startTimeSeconds: startTime,
+      endTimeSeconds: endTime,
+    });
+
+    let synced = 0;
+    let updated = 0;
+
+    for (const record of records) {
+      const callId = `bot_${record.conversationId}`;
+      const existing = await prisma.cdrRecord.findUnique({
+        where: { callId },
+      });
+
+      const data = this.mapAiConversationToCdrData(record);
+
+      if (existing) {
+        await prisma.cdrRecord.update({
+          where: { callId },
+          data,
+        });
+        updated++;
+      } else {
+        await prisma.cdrRecord.create({ data });
+        synced++;
+      }
+    }
+
+    logger.info(
+      `AI Voice Bot sync complete: ${synced} new, ${updated} updated, ${records.length} total`,
+    );
+
+    return { synced, updated, total: records.length };
+  }
+
   async query(params: {
     answered?: number;
     direction?: number;
+    recordingType?: string;
     name?: string;
     names?: string[];
     caller?: string;
@@ -80,6 +124,10 @@ export class CdrService {
     }
     if (params.direction !== undefined && params.direction !== 0) {
       where.direction = params.direction;
+    }
+
+    if (params.recordingType && params.recordingType !== "all") {
+      where.recordingType = params.recordingType;
     }
 
     // Agent access filter
@@ -171,6 +219,7 @@ export class CdrService {
     return {
       orderId: record.orderId || null,
       callId: record.callId,
+      recordingType: "agent",
       agentName: record.agentName || null,
       agentNickName: record.agentNickName || null,
       caller: record.caller || null,
@@ -195,6 +244,31 @@ export class CdrService {
         ? Number(record.totalCustomerPrice)
         : null,
       lineIp: record.lineIp || null,
+    };
+  }
+
+  private mapAiConversationToCdrData(conv: AiConversationRecord) {
+    const startMs = conv.startTime || Date.now();
+    return {
+      orderId: null,
+      callId: `bot_${conv.conversationId}`,
+      conversationId: conv.conversationId,
+      recordingType: "ai_bot",
+      flowName: conv.flowName || null,
+      tags: (conv.tags ? JSON.stringify(conv.tags) : null) as any,
+      summary: conv.summary || null,
+      sentiment: conv.sentiment || null,
+      agentName: conv.flowName ? `AI Bot (${conv.flowName})` : "AI Voice Bot",
+      agentNickName: "AI Bot",
+      caller: conv.phone || null,
+      callee: null,
+      direction: 1, // inbound
+      answered: true,
+      callStatus: "Completed",
+      startTime: BigInt(startMs),
+      endTime: BigInt(startMs + (conv.callDuration ? conv.callDuration * 1000 : 60000)),
+      callDuration: conv.callDuration || null,
+      recordUrl: conv.audioUrl || null,
     };
   }
 }

@@ -28,6 +28,7 @@ router.post(
     try {
       const {
         name,
+        recordingType,
         agentNames,
         directions,
         answeredOnly,
@@ -42,6 +43,7 @@ router.post(
       const rule = await prisma.downloadRule.create({
         data: {
           name,
+          recordingType: recordingType || "all",
           agentNames: agentNames ? JSON.stringify(agentNames) : undefined,
           directions: directions ? JSON.stringify(directions) : undefined,
           answeredOnly: answeredOnly || false,
@@ -72,6 +74,7 @@ router.patch(
       );
       const {
         name,
+        recordingType,
         agentNames,
         directions,
         answeredOnly,
@@ -87,6 +90,7 @@ router.patch(
 
       const updateData: Record<string, unknown> = {};
       if (name !== undefined) updateData.name = name;
+      if (recordingType !== undefined) updateData.recordingType = recordingType;
       if (agentNames !== undefined)
         updateData.agentNames = JSON.stringify(agentNames);
       if (directions !== undefined)

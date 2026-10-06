@@ -21,20 +21,21 @@ export class DownloadService {
 
   getRecordingPath(cdr: {
     callId: string;
-    agentName: string | null;
+    agentName?: string | null;
+    recordingType?: string | null;
     startTime: bigint | null;
   }): string {
     const date = cdr.startTime ? new Date(Number(cdr.startTime)) : new Date();
     const year = date.getFullYear();
     const monthDay = `${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-    const agentName = cdr.agentName || "unknown";
+    const subFolder = cdr.recordingType === "ai_bot" ? "ai_bot" : (cdr.agentName || "agent");
     const ext = isEncryptionEnabled() ? "mp3.enc" : "mp3";
 
     return path.join(
       this.storageRoot,
       String(year),
       monthDay,
-      agentName,
+      subFolder,
       `${cdr.callId}.${ext}`,
     );
   }
@@ -110,6 +111,7 @@ export class DownloadService {
     const filePath = this.getRecordingPath({
       callId: cdr.callId,
       agentName: cdr.agentName,
+      recordingType: cdr.recordingType,
       startTime: cdr.startTime,
     });
 

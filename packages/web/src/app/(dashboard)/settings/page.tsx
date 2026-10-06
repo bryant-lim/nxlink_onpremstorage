@@ -8,6 +8,8 @@ interface ApiConfig {
   name: string;
   region: string;
   apiGateway: string;
+  aiTokenUrl?: string | null;
+  aiAppUrl?: string | null;
   isActive: boolean;
   createdAt: string;
 }
@@ -52,6 +54,8 @@ export default function SettingsPage() {
     accessSecret: "",
     bizType: "8",
     action: "cc",
+    aiTokenUrl: "",
+    aiAppUrl: "",
   });
   const [schedulerForm, setSchedulerForm] = useState({
     cronExpression: "0 */6 * * *",
@@ -143,6 +147,8 @@ export default function SettingsPage() {
         accessSecret: "",
         bizType: "8",
         action: "cc",
+        aiTokenUrl: "",
+        aiAppUrl: "",
       });
       fetchData();
       setSuccess("API configuration saved");
@@ -352,6 +358,8 @@ export default function SettingsPage() {
                   accessSecret: "",
                   bizType: "8",
                   action: "cc",
+                  aiTokenUrl: "",
+                  aiAppUrl: "",
                 });
               }}
               className="rounded bg-green-600 px-4 py-2 text-sm text-white transition hover:bg-green-700"
@@ -460,6 +468,40 @@ export default function SettingsPage() {
                     required={!editingConfig}
                   />
                 </div>
+                <div className="sm:col-span-2 border-t pt-4 mt-2">
+                  <h3 className="text-sm font-semibold text-gray-800 mb-1">AI Voice Bot Settings (Optional)</h3>
+                  <p className="text-xs text-gray-500 mb-3">Required only if syncing and downloading AI Voice Bot recordings via Flow Manager.</p>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-gray-700">
+                        AI Token URL
+                      </label>
+                      <input
+                        type="url"
+                        value={apiForm.aiTokenUrl}
+                        onChange={(e) =>
+                          setApiForm({ ...apiForm, aiTokenUrl: e.target.value })
+                        }
+                        placeholder="https://.../get_plat_token?access_key=..."
+                        className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-gray-700">
+                        AI App URL
+                      </label>
+                      <input
+                        type="url"
+                        value={apiForm.aiAppUrl}
+                        onChange={(e) =>
+                          setApiForm({ ...apiForm, aiAppUrl: e.target.value })
+                        }
+                        placeholder="https://app.nxlink.ai"
+                        className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
               <div className="mt-4 flex gap-2">
                 <button
@@ -552,6 +594,8 @@ export default function SettingsPage() {
                               accessSecret: "",
                               bizType: "8",
                               action: "cc",
+                              aiTokenUrl: config.aiTokenUrl || "",
+                              aiAppUrl: config.aiAppUrl || "",
                             });
                           }}
                           className="mr-2 text-gray-600 hover:text-gray-800"

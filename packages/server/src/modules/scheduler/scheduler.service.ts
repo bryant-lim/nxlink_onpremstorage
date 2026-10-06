@@ -1,6 +1,7 @@
 import cron from "node-cron";
 import { prisma } from "../../config/database.js";
 import { NxlinkApiService } from "../../services/nxlink-api.service.js";
+import { NxlinkAiService } from "../../services/nxlink-ai.service.js";
 import { CdrService } from "../cdr/cdr.service.js";
 import { DownloadService } from "../download/download.service.js";
 import { RuleEngine } from "../rules/rule-engine.js";
@@ -136,6 +137,27 @@ export class SchedulerService {
     logger.info(
       `[Scheduler #${runId}] CDR sync complete in ${syncElapsed}ms: ${syncResult.total} records (${syncResult.synced} new, ${syncResult.updated} updated)`,
     );
+
+    // AI Voice Bot Sync if token URL is configured
+    const aiTokenUrl = activeApiConfig.aiTokenUrl || process.env.NXAI_TOKEN_URL;
+    if (aiTokenUrl) {
+      try {
+        const aiService = new NxlinkAiService({
+          aiTokenUrl,
+          aiAppUrl: activeApiConfig.aiAppUrl || "https://app.nxlink.ai",
+        });
+        const botSyncResult = await this.cdrService.syncAiBotFromApi(
+          aiService,
+          startTime,
+          endTime,
+        );
+        logger.info(
+          `[Scheduler #${runId}] AI Voice Bot sync complete: ${botSyncResult.total} records (${botSyncResult.synced} new, ${botSyncResult.updated} updated)`,
+        );
+      } catch (botError: any) {
+        logger.warn(`[Scheduler #${runId}] AI Voice Bot sync error: ${botError.message || botError}`);
+      }
+    }
 
     const downloadService = new DownloadService(config.storagePath);
 

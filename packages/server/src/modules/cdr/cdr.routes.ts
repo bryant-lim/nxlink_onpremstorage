@@ -5,6 +5,7 @@ import archiver from "archiver";
 import { authenticate, AuthRequest } from "../../middleware/auth.js";
 import { CdrService } from "./cdr.service.js";
 import { NxlinkApiService } from "../../services/nxlink-api.service.js";
+import { NxlinkAiService } from "../../services/nxlink-ai.service.js";
 import { prisma } from "../../config/database.js";
 import { logger } from "../../utils/logger.js";
 import { logAudit } from "../../utils/audit.js";
@@ -25,6 +26,7 @@ router.get("/", authenticate, async (req: AuthRequest, res) => {
     const {
       answered,
       direction,
+      recordingType,
       name,
       names,
       caller,
@@ -41,6 +43,7 @@ router.get("/", authenticate, async (req: AuthRequest, res) => {
     const result = await cdrService.query({
       answered: answered ? Number(answered) : undefined,
       direction: direction ? Number(direction) : undefined,
+      recordingType: recordingType as string | undefined,
       name: name as string | undefined,
       names: names ? (names as string).split(",") : undefined,
       caller: caller as string | undefined,
@@ -107,6 +110,29 @@ router.post("/sync", authenticate, async (req: AuthRequest, res) => {
 
     const result = await cdrService.syncFromApi(apiService, startTime, endTime);
 
+    // AI Voice Bot sync if configured
+    const aiTokenUrl = activeConfig.aiTokenUrl || process.env.NXAI_TOKEN_URL;
+    let botResult = { synced: 0, updated: 0, total: 0 };
+    if (aiTokenUrl) {
+      try {
+        const aiService = new NxlinkAiService({
+          aiTokenUrl,
+          aiAppUrl: activeConfig.aiAppUrl || "https://app.nxlink.ai",
+        });
+        botResult = await cdrService.syncAiBotFromApi(aiService, startTime, endTime);
+      } catch (botErr: any) {
+        logger.warn(`AI Voice Bot sync in /sync failed: ${botErr.message || botErr}`);
+      }
+    }
+
+    const combinedResult = {
+      synced: result.synced + botResult.synced,
+      updated: result.updated + botResult.updated,
+      total: result.total + botResult.total,
+      agentSynced: result.synced,
+      botSynced: botResult.synced,
+    };
+
     logger.info(`CDR sync triggered by ${req.user?.username}. Evaluating download rules...`);
 
     const schedulerConfig = await prisma.schedulerConfig.findFirst({
@@ -153,7 +179,7 @@ router.post("/sync", authenticate, async (req: AuthRequest, res) => {
     );
 
     res.json({
-      ...result,
+      ...combinedResult,
       downloaded,
       failed,
     });

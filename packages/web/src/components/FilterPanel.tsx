@@ -13,6 +13,7 @@ interface Agent {
 interface FilterParams {
   answered?: number;
   direction?: number;
+  recordingType?: string;
   names?: string[];
   caller?: string;
   callee?: string;
@@ -338,6 +339,20 @@ export default function FilterPanel({ onFilter, onReset }: FilterPanelProps) {
                 placeholder="Order ID..."
                 className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
               />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-500">
+                Type
+              </label>
+              <select
+                value={filters.recordingType ?? ""}
+                onChange={(e) => handleChange("recordingType", e.target.value)}
+                className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+              >
+                <option value="">All Types</option>
+                <option value="agent">Agent Call</option>
+                <option value="ai_bot">AI Voice Bot</option>
+              </select>
             </div>
           </div>
         )}

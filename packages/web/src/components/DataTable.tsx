@@ -28,6 +28,16 @@ interface DataTableProps {
 }
 
 const ALL_COLUMNS: Column[] = [
+  {
+    key: "recordingType",
+    label: "Type",
+    render: (row) =>
+      row.recordingType === "ai_bot" ? (
+        <span className="text-emerald-700 font-medium text-xs">AI Voice Bot</span>
+      ) : (
+        <span className="text-slate-600 font-medium text-xs">Agent Call</span>
+      ),
+  },
   { key: "agentName", label: "Agent" },
   { key: "agentNickName", label: "Nickname" },
   { key: "caller", label: "Caller" },
@@ -48,9 +58,7 @@ const ALL_COLUMNS: Column[] = [
     key: "answered",
     label: "Answered",
     render: (row) => (
-      <span
-        className={`rounded-full px-2 py-0.5 text-xs ${row.answered ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}
-      >
+      <span className={row.answered ? "text-emerald-600 font-medium text-xs" : "text-slate-400 text-xs"}>
         {row.answered ? "Yes" : "No"}
       </span>
     ),

@@ -11,12 +11,15 @@ export interface User {
 }
 
 export type Region = "APAC" | "AMER" | "APAC_IDN";
+export type RecordingType = "agent" | "ai_bot";
 
 export interface ApiConfig {
   id: number;
   name: string;
   region: Region;
   apiGateway: string;
+  aiTokenUrl?: string | null;
+  aiAppUrl?: string | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -26,6 +29,11 @@ export interface CdrRecord {
   id: number;
   orderId: string | null;
   callId: string;
+  conversationId?: string | null;
+  recordingType?: string;
+  flowName?: string | null;
+  tags?: string[] | null;
+  summary?: string | null;
   agentName: string | null;
   agentNickName: string | null;
   caller: string | null;
@@ -78,8 +86,10 @@ export interface DownloadLog {
 export interface DownloadRule {
   id: number;
   name: string;
+  recordingType?: string | null;
   agentNames: string[] | null;
   directions: number[] | null;
+  flowNames?: string[] | null;
   answeredOnly: boolean;
   minDuration: number | null;
   isActive: boolean;
@@ -165,6 +175,7 @@ export interface NxlinkApiResponse<T> {
 export interface CdrFilterParams {
   answered?: number;
   direction?: number;
+  recordingType?: string;
   startTime: number;
   endTime: number;
   name?: string;

@@ -44,6 +44,7 @@ export default function RecordingsPage() {
     getTodayRangeTimestamps(),
   );
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
+    "recordingType",
     "agentName",
     "agentNickName",
     "caller",

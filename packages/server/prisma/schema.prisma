@@ -35,6 +35,8 @@ model ApiConfig {
   secretKey  String   @db.VarChar(255)
   bizType    String   @default("8") @db.VarChar(10)
   action     String   @default("cc") @db.VarChar(10)
+  aiTokenUrl String?  @db.VarChar(500)
+  aiAppUrl   String?  @default("https://app.nxlink.ai") @db.VarChar(255)
   isActive   Boolean  @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -43,16 +45,18 @@ model ApiConfig {
 }
 
 model DownloadRule {
-  id           BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
-  name         String    @db.VarChar(200)
-  agentNames   Json?
-  directions   Json?
-  answeredOnly Boolean   @default(false)
-  minDuration  Int?
-  isActive     Boolean   @default(true)
-  createdById  BigInt?   @db.UnsignedBigInt
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id            BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  name          String    @db.VarChar(200)
+  recordingType String?   @default("all") @db.VarChar(20)
+  agentNames    Json?
+  directions    Json?
+  flowNames     Json?
+  answeredOnly  Boolean   @default(false)
+  minDuration   Int?
+  isActive      Boolean   @default(true)
+  createdById   BigInt?   @db.UnsignedBigInt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   createdBy    User?         @relation("RuleCreator", fields: [createdById], references: [id], onDelete: SetNull)
   downloadLogs DownloadLog[]
@@ -73,6 +77,12 @@ model CdrRecord {
   id                 BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
   orderId            String?  @db.VarChar(100)
   callId             String   @unique @db.VarChar(100)
+  conversationId     String?  @db.VarChar(100)
+  recordingType      String   @default("agent") @db.VarChar(20)
+  flowName           String?  @db.VarChar(100)
+  tags               Json?
+  summary            String?  @db.Text
+  sentiment          String?  @db.VarChar(50)
   agentName          String?  @db.VarChar(100)
   agentNickName      String?  @db.VarChar(100)
   caller             String?  @db.VarChar(50)
@@ -105,6 +115,8 @@ model CdrRecord {
   @@index([agentName])
   @@index([startTime])
   @@index([direction])
+  @@index([recordingType])
+  @@index([conversationId])
 }
 
 model DownloadLog {

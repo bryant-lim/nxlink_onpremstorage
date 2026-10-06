@@ -7,6 +7,20 @@ export interface RuleMatchResult {
   ruleId: bigint | null;
 }
 
+function parseJsonArray<T>(val: unknown): T[] {
+  if (!val) return [];
+  if (Array.isArray(val)) return val as T[];
+  if (typeof val === "string") {
+    try {
+      const p = JSON.parse(val);
+      return Array.isArray(p) ? (p as T[]) : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
 export class RuleEngine {
   async evaluateCdr(cdr: CdrRecordType): Promise<RuleMatchResult> {
     if (!cdr) {
@@ -31,24 +45,49 @@ export class RuleEngine {
   }
 
   private matchesRule(cdr: CdrRecordType, rule: any): boolean {
-    if (rule.agentNames) {
-      const agentNames = JSON.parse(rule.agentNames) as string[];
+    const isAiBot = cdr?.recordingType === "ai_bot";
+
+    // 1. Recording type check
+    if (rule.recordingType && rule.recordingType !== "all") {
+      const cdrType = cdr?.recordingType || "agent";
+      if (rule.recordingType !== cdrType) {
+        return false;
+      }
+    }
+
+    // 2. Agent names filter (only applies to human agent calls)
+    if (!isAiBot) {
+      const agentNames = parseJsonArray<string>(rule.agentNames);
       if (agentNames.length > 0 && !agentNames.includes(cdr?.agentName || "")) {
         return false;
       }
     }
 
-    if (rule.directions) {
-      const directions = JSON.parse(rule.directions) as number[];
-      if (directions.length > 0 && !directions.includes(cdr?.direction || 0)) {
+    // 3. Flow names filter (for AI bot calls if specified)
+    if (isAiBot && rule.flowNames) {
+      const flowNames = parseJsonArray<string>(rule.flowNames);
+      if (flowNames.length > 0 && !flowNames.includes(cdr?.flowName || "")) {
         return false;
       }
     }
 
-    if (rule.answeredOnly && !cdr?.answered) {
+    // 4. Direction check
+    const directions = parseJsonArray<number>(rule.directions);
+    if (
+      directions.length > 0 &&
+      cdr?.direction !== null &&
+      cdr?.direction !== undefined &&
+      !directions.includes(cdr.direction)
+    ) {
       return false;
     }
 
+    // 5. Answered check
+    if (rule.answeredOnly && cdr?.answered === false) {
+      return false;
+    }
+
+    // 6. Minimum duration check
     if (rule.minDuration && (cdr?.callDuration || 0) < rule.minDuration) {
       return false;
     }

@@ -17,6 +17,8 @@ router.get("/", async (_req, res) => {
         name: true,
         region: true,
         apiGateway: true,
+        aiTokenUrl: true,
+        aiAppUrl: true,
         isActive: true,
         createdAt: true,
         updatedAt: true,
@@ -45,6 +47,8 @@ router.post(
         accessSecret,
         bizType,
         action,
+        aiTokenUrl,
+        aiAppUrl,
       } = req.body;
 
       if (!name || !region || !apiGateway || !accessKey || !accessSecret) {
@@ -60,12 +64,16 @@ router.post(
           secretKey: accessSecret,
           bizType: bizType || "8",
           action: action || "cc",
+          aiTokenUrl: aiTokenUrl || null,
+          aiAppUrl: aiAppUrl || "https://app.nxlink.ai",
         },
         select: {
           id: true,
           name: true,
           region: true,
           apiGateway: true,
+          aiTokenUrl: true,
+          aiAppUrl: true,
           isActive: true,
           createdAt: true,
         },
@@ -90,8 +98,16 @@ router.patch(
       const id = BigInt(
         Array.isArray(req.params.id) ? req.params.id[0] : req.params.id,
       );
-      const { name, region, apiGateway, accessKey, accessSecret, isActive } =
-        req.body;
+      const {
+        name,
+        region,
+        apiGateway,
+        accessKey,
+        accessSecret,
+        aiTokenUrl,
+        aiAppUrl,
+        isActive,
+      } = req.body;
 
       const existing = await prisma.apiConfig.findUnique({ where: { id } });
 
@@ -105,6 +121,8 @@ router.patch(
       if (apiGateway !== undefined) updateData.apiGateway = apiGateway;
       if (accessKey !== undefined) updateData.accessKey = accessKey;
       if (accessSecret !== undefined) updateData.secretKey = accessSecret;
+      if (aiTokenUrl !== undefined) updateData.aiTokenUrl = aiTokenUrl;
+      if (aiAppUrl !== undefined) updateData.aiAppUrl = aiAppUrl;
       if (isActive !== undefined) updateData.isActive = isActive;
 
       const updated = await prisma.apiConfig.update({
@@ -115,6 +133,8 @@ router.patch(
           name: true,
           region: true,
           apiGateway: true,
+          aiTokenUrl: true,
+          aiAppUrl: true,
           isActive: true,
           updatedAt: true,
         },
