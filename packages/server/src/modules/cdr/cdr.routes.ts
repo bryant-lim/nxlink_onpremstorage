@@ -143,8 +143,8 @@ router.post("/sync", authenticate, async (req: AuthRequest, res) => {
       where: { isActive: true },
     });
     const storagePath =
-      schedulerConfig?.storagePath ||
       process.env.RECORDINGS_PATH ||
+      schedulerConfig?.storagePath ||
       "./recordings";
 
     const localDownloadService = new DownloadService(storagePath);

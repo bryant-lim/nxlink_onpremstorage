@@ -163,7 +163,9 @@ export class SchedulerService {
       }
     }
 
-    const downloadService = new DownloadService(config.storagePath);
+    const storagePath =
+      process.env.RECORDINGS_PATH || config.storagePath || "./recordings";
+    const downloadService = new DownloadService(storagePath);
 
     const pendingCdrs = await prisma.cdrRecord.findMany({
       where: {

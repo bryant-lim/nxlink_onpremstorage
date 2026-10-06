@@ -43,6 +43,7 @@ services:
       - "3009:3009"
     volumes:
       - ./recordings:/app/recordings
+      - ./recordings:/app/packages/server/recordings
       - ./logs:/app/logs
     depends_on:
       mysql:

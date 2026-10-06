@@ -43,33 +43,53 @@ router.get("/stream", async (req: AuthRequest, res) => {
       return res.status(400).json({ error: "filePath is required" });
     }
 
-    const resolvedPath = path.resolve(filePath);
     const schedulerConfig = await prisma.schedulerConfig.findFirst({
       where: { isActive: true },
     });
     const configPath =
-      schedulerConfig?.storagePath ||
       process.env.RECORDINGS_PATH ||
+      schedulerConfig?.storagePath ||
       "./recordings";
     const recordingsPath = path.resolve(configPath);
 
-    if (!resolvedPath.startsWith(recordingsPath)) {
+    let streamPath = path.resolve(filePath);
+
+    // Fallback: if file is not found at stored path, check under recordingsPath
+    if (!fs.existsSync(streamPath)) {
+      const match = filePath.match(/recordings[/\\](.+)$/);
+      if (match) {
+        const altPath = path.join(recordingsPath, match[1]);
+        if (fs.existsSync(altPath)) {
+          streamPath = altPath;
+        }
+      }
+    }
+
+    const allowedRoots = [
+      recordingsPath,
+      path.resolve("/app/recordings"),
+      path.resolve("/app/packages/server/recordings"),
+      path.resolve("./recordings"),
+    ];
+
+    const isAllowed = allowedRoots.some((root) => streamPath.startsWith(root));
+    if (!isAllowed) {
       return res.status(403).json({ error: "Access denied" });
     }
 
-    if (!fs.existsSync(resolvedPath)) {
+    if (!fs.existsSync(streamPath)) {
       return res.status(404).json({ error: "File not found" });
     }
 
     // Check if file is encrypted (by extension or by checking if encryption is enabled)
     const isEncrypted =
-      resolvedPath.endsWith(".enc") ||
-      (isEncryptionEnabled() && !resolvedPath.endsWith(".mp3"));
+      streamPath.endsWith(".enc") ||
+      (isEncryptionEnabled() && !streamPath.endsWith(".mp3"));
 
     if (isEncrypted) {
       // Decrypt entire file and stream
       try {
-        const encryptedData = fs.readFileSync(resolvedPath);
+        const encryptedData = fs.readFileSync(streamPath);
         const decryptedData = decrypt(encryptedData);
 
         res.writeHead(200, {
@@ -90,7 +110,7 @@ router.get("/stream", async (req: AuthRequest, res) => {
       }
     } else {
       // Stream unencrypted file with range support
-      const stat = fs.statSync(resolvedPath);
+      const stat = fs.statSync(streamPath);
       const fileSize = stat.size;
       const range = req.headers.range;
 
@@ -107,14 +127,14 @@ router.get("/stream", async (req: AuthRequest, res) => {
           "Content-Type": "audio/mpeg",
         });
 
-        fs.createReadStream(resolvedPath, { start, end }).pipe(res);
+        fs.createReadStream(streamPath, { start, end }).pipe(res);
       } else {
         res.writeHead(200, {
           "Content-Length": fileSize,
           "Content-Type": "audio/mpeg",
         });
 
-        fs.createReadStream(resolvedPath).pipe(res);
+        fs.createReadStream(streamPath).pipe(res);
       }
     }
 
