@@ -4,11 +4,25 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Toggle from "@/components/Toggle";
 import { useAuth } from "@/providers/auth-provider";
 
+function safeParseArray<T>(val: unknown): T[] {
+  if (!val) return [];
+  if (Array.isArray(val)) return val as T[];
+  if (typeof val === "string") {
+    try {
+      const parsed = JSON.parse(val);
+      return Array.isArray(parsed) ? (parsed as T[]) : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
 interface Rule {
   id: number;
   name: string;
-  agentNames: string | null;
-  directions: string | null;
+  agentNames: string | string[] | null;
+  directions: string | number[] | null;
   answeredOnly: boolean;
   minDuration: number | null;
   isActive: boolean;
@@ -136,8 +150,8 @@ export default function RulesPage() {
     setEditingRule(rule);
     setForm({
       name: rule.name,
-      selectedAgents: rule.agentNames ? JSON.parse(rule.agentNames) : [],
-      directions: rule.directions ? JSON.parse(rule.directions) : [],
+      selectedAgents: safeParseArray<string>(rule.agentNames),
+      directions: safeParseArray<number>(rule.directions),
       answeredOnly: rule.answeredOnly,
       minDuration: rule.minDuration?.toString() || "",
       isActive: rule.isActive,
@@ -437,18 +451,23 @@ export default function RulesPage() {
                     {rule.name}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
-                    {rule.agentNames
-                      ? JSON.parse(rule.agentNames).join(", ")
-                      : "All"}
+                    {(() => {
+                      const agents = safeParseArray<string>(rule.agentNames);
+                      return agents.length > 0 ? agents.join(", ") : "All";
+                    })()}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
-                    {rule.directions
-                      ? JSON.parse(rule.directions)
-                          .map(
-                            (d: number) => ["Inbound", "Outbound", "AICC"][d],
-                          )
-                          .join(", ")
-                      : "All"}
+                    {(() => {
+                      const dirs = safeParseArray<number>(rule.directions);
+                      return dirs.length > 0
+                        ? dirs
+                            .map(
+                              (d: number) =>
+                                ["Inbound", "Outbound", "AICC"][d] || `Dir ${d}`,
+                            )
+                            .join(", ")
+                        : "All";
+                    })()}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
                     {rule.answeredOnly ? "Yes" : "No"}

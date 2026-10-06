@@ -34,7 +34,11 @@ services:
       JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
       RECORDINGS_PATH: /app/recordings
+      LOG_DIR: /app/logs
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_STDOUT_ENABLED: ${LOG_STDOUT_ENABLED:-true}
+      LOG_STDERR_ENABLED: ${LOG_STDERR_ENABLED:-true}
+      LOG_CONSOLE_ENABLED: ${LOG_CONSOLE_ENABLED:-true}
     ports:
       - "3009:3009"
     volumes:

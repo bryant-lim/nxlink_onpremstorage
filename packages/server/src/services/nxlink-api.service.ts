@@ -144,9 +144,72 @@ export class NxlinkApiService {
   async fetchAllCdrs(
     params: Omit<CdrFilterParams, "page">,
   ): Promise<NxlinkCdrResponse[]> {
+    const MAX_QUERY_SPAN_SECONDS = 7 * 86400; // NXLink max query range is 7 days
+    const size = params.size || 100;
+
+    // If both startTime and endTime are defined and span more than 7 days, chunk by 7-day intervals
+    if (
+      params.startTime !== undefined &&
+      params.endTime !== undefined &&
+      params.endTime - params.startTime > MAX_QUERY_SPAN_SECONDS
+    ) {
+      const allRecords: NxlinkCdrResponse[] = [];
+      const seenCallIds = new Set<string>();
+      let currentStart = params.startTime;
+
+      logger.info(
+        `Time range span (${Math.round((params.endTime - params.startTime) / 86400)} days) exceeds 7-day limit. Chunking query into 7-day intervals...`,
+      );
+
+      while (currentStart < params.endTime) {
+        const currentEnd = Math.min(
+          currentStart + MAX_QUERY_SPAN_SECONDS,
+          params.endTime,
+        );
+
+        logger.info(
+          `Fetching CDR chunk: ${new Date(currentStart * 1000).toISOString()} -> ${new Date(currentEnd * 1000).toISOString()}`,
+        );
+
+        let page = 1;
+        while (true) {
+          const result = await this.fetchCdrPage({
+            ...params,
+            startTime: currentStart,
+            endTime: currentEnd,
+            page,
+            size,
+          });
+
+          if (result.data.length === 0) {
+            break;
+          }
+
+          for (const rec of result.data) {
+            if (!seenCallIds.has(rec.callId)) {
+              seenCallIds.add(rec.callId);
+              allRecords.push(rec);
+            }
+          }
+
+          if (result.data.length < size) {
+            break;
+          }
+
+          page++;
+        }
+
+        currentStart = currentEnd;
+      }
+
+      logger.info(
+        `Fetched ${allRecords.length} total unique CDR records across all chunks`,
+      );
+      return allRecords;
+    }
+
     const allRecords: NxlinkCdrResponse[] = [];
     let page = 1;
-    const size = params.size || 100;
 
     while (true) {
       const result = await this.fetchCdrPage({ ...params, page, size });
