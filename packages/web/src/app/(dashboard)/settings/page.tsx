@@ -8,6 +8,8 @@ interface ApiConfig {
   name: string;
   region: string;
   apiGateway: string;
+  accessKey?: string;
+  accessSecret?: string;
   aiTokenUrl?: string | null;
   aiAppUrl?: string | null;
   platToken?: string | null;
@@ -803,8 +805,8 @@ export default function SettingsPage() {
                               name: config.name,
                               region: config.region,
                               apiGateway: config.apiGateway,
-                              accessKey: "",
-                              accessSecret: "",
+                              accessKey: config.accessKey || "",
+                              accessSecret: config.accessSecret || "",
                               bizType: "8",
                               action: "cc",
                               aiTokenUrl: config.aiTokenUrl || "",

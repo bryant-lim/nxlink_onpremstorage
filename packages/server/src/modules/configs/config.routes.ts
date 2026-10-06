@@ -19,6 +19,8 @@ router.get("/", async (_req, res) => {
         name: true,
         region: true,
         apiGateway: true,
+        accessKey: true,
+        secretKey: true,
         aiTokenUrl: true,
         aiAppUrl: true,
         platToken: true,
@@ -29,7 +31,12 @@ router.get("/", async (_req, res) => {
       orderBy: { createdAt: "desc" },
     });
 
-    res.json(configs);
+    const mapped = configs.map((c) => ({
+      ...c,
+      accessSecret: c.secretKey,
+    }));
+
+    res.json(mapped);
   } catch (error) {
     logger.error(`List API configs error: ${error}`);
     res.status(500).json({ error: "Internal server error" });
