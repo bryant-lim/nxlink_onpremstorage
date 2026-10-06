@@ -148,8 +148,6 @@ export class NxlinkAiService {
   }
 
   async fetchConversationsPage(params: {
-    startTimeSeconds?: number;
-    endTimeSeconds?: number;
     page: number;
     size: number;
   }): Promise<{ list: any[]; total: number }> {
@@ -162,11 +160,6 @@ export class NxlinkAiService {
         timeZone: "UTC+08:00",
       };
 
-      if (params.startTimeSeconds && params.endTimeSeconds) {
-        body.start_time = new Date(params.startTimeSeconds * 1000).toISOString().replace("T", " ").substring(0, 19);
-        body.end_time = new Date(params.endTimeSeconds * 1000).toISOString().replace("T", " ").substring(0, 19);
-      }
-
       const res = await this.client.post("/admin/nx_flow_manager/conversation", body, {
         headers: {
           authorization: token,
@@ -175,8 +168,14 @@ export class NxlinkAiService {
       });
 
       const data = res.data;
-      const list = data?.list || data?.data || [];
-      const total = typeof data?.total === "number" ? data.total : list.length;
+      const list = Array.isArray(data?.data?.list)
+        ? data.data.list
+        : (Array.isArray(data?.list)
+          ? data.list
+          : (Array.isArray(data?.data) ? data.data : []));
+      const total = typeof data?.data?.total === "number"
+        ? data.data.total
+        : (typeof data?.total === "number" ? data.total : list.length);
 
       return { list, total };
     }, `Fetch AI conversations page ${params.page}`);
@@ -191,13 +190,17 @@ export class NxlinkAiService {
     let page = 1;
     const size = 100;
     const max = params.maxConversations || 10000;
+    const startTimeSec = params.startTimeSeconds;
+    const endTimeSec = params.endTimeSeconds;
 
-    logger.info("[Nxlink AI] Starting AI voice bot conversation fetch...");
+    logger.info(
+      `[Nxlink AI] Starting AI voice bot conversation fetch (window: ${startTimeSec || "all"} - ${endTimeSec || "now"})...`,
+    );
 
-    while (records.length < max) {
+    let hasMoreInWindow = true;
+
+    while (records.length < max && hasMoreInWindow) {
       const { list, total } = await this.fetchConversationsPage({
-        startTimeSeconds: params.startTimeSeconds,
-        endTimeSeconds: params.endTimeSeconds,
         page,
         size,
       });
@@ -210,6 +213,25 @@ export class NxlinkAiService {
         const convId = conv.id || conv.conversationId || conv.uuid;
         if (!convId) continue;
 
+        const rawTs = conv.created_at || conv.createdAt || conv.create_time || conv.createTime;
+        let createdSec: number | undefined;
+        let startMs: number | undefined;
+        if (rawTs) {
+          createdSec = typeof rawTs === "number" ? (rawTs > 10000000000 ? Math.floor(rawTs / 1000) : rawTs) : Math.floor(new Date(rawTs).getTime() / 1000);
+          startMs = createdSec * 1000;
+        }
+
+        // If records are older than startTimeSeconds, we have scanned past the lookback window
+        if (startTimeSec && createdSec && createdSec < startTimeSec) {
+          hasMoreInWindow = false;
+          continue;
+        }
+
+        // If record is newer than endTimeSeconds, skip it for this window
+        if (endTimeSec && createdSec && createdSec > endTimeSec) {
+          continue;
+        }
+
         let audioUrl: string | null = conv.call_audio_url || conv.callAudioUrl || null;
 
         // If audio url is not on conversation header, query messages
@@ -221,12 +243,6 @@ export class NxlinkAiService {
           }
         }
 
-        const rawTs = conv.created_at || conv.createdAt || conv.create_time || conv.createTime;
-        let startMs: number | undefined;
-        if (rawTs) {
-          startMs = typeof rawTs === "number" ? (rawTs > 10000000000 ? rawTs : rawTs * 1000) : new Date(rawTs).getTime();
-        }
-
         let tags: string[] = [];
         if (Array.isArray(conv.tags)) {
           tags = conv.tags.map((t: any) => (typeof t === "string" ? t : t?.name)).filter(Boolean);
@@ -236,18 +252,18 @@ export class NxlinkAiService {
           id: String(convId),
           conversationId: String(convId),
           phone: conv.phone || conv.customer_phone || conv.customerPhone || null,
-          flowName: conv.flow_name || conv.flowName || null,
+          flowName: conv.auto_flow_name || conv.flow_name || conv.flowName || null,
           tags,
-          summary: conv.summary || conv.full_summary || null,
+          summary: conv.conv_summary || conv.summary || conv.full_summary || null,
           sentiment: conv.sentiment || null,
           startTime: startMs,
           audioUrl,
         });
       }
 
-      logger.info(`[Nxlink AI] Page ${page} fetched: ${list.length} sessions (accumulated: ${records.length}/${total})`);
+      logger.info(`[Nxlink AI] Page ${page} processed: ${list.length} sessions (matching records accumulated: ${records.length}/${total})`);
 
-      if (records.length >= total || list.length < size) {
+      if (!hasMoreInWindow || records.length >= total || list.length < size) {
         break;
       }
 
@@ -257,7 +273,7 @@ export class NxlinkAiService {
       await new Promise((r) => setTimeout(r, 500));
     }
 
-    logger.info(`[Nxlink AI] Total AI voice bot sessions fetched: ${records.length}`);
+    logger.info(`[Nxlink AI] Total matching AI voice bot sessions: ${records.length}`);
     return records;
   }
 }
