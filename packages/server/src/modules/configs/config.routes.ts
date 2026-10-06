@@ -191,6 +191,48 @@ router.delete(
   },
 );
 
+// Fetch NXLink login captcha
+router.get(
+  "/ai-token-captcha",
+  authenticate,
+  authorize("admin"),
+  async (req: AuthRequest, res) => {
+    try {
+      const host = (
+        (req.query.host as string) || "https://app.nxlink.ai"
+      ).replace(/\/+$/, "");
+      const captchaUrl = `${host}/admin/saas_plat/captcha/start_image_verify`;
+      const response = await axios.get(captchaUrl, {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          Origin: host,
+          Referer: `${host}/admin/`,
+        },
+        timeout: 10000,
+      });
+
+      const data = response.data;
+      if (data && data.code === 0 && data.data) {
+        return res.json({
+          success: true,
+          key: data.data.key,
+          image: data.data.image,
+        });
+      }
+
+      return res
+        .status(400)
+        .json({ error: "Failed to retrieve captcha from NXLink" });
+    } catch (error: any) {
+      logger.error(`Fetch AI token captcha error: ${error.message || error}`);
+      return res
+        .status(500)
+        .json({ error: "Failed to connect to NXLink captcha service" });
+    }
+  },
+);
+
 // Generate AI plat_token using NXLink Admin credentials
 router.post(
   "/generate-ai-token",
@@ -198,11 +240,17 @@ router.post(
   authorize("admin"),
   async (req: AuthRequest, res) => {
     try {
-      const { email, password, host } = req.body;
+      const { email, password, captchaCode, captchaKey, host } = req.body;
       if (!email || !password) {
         return res
           .status(400)
           .json({ error: "Email/Account and Password are required" });
+      }
+
+      if (!captchaCode || !captchaKey) {
+        return res
+          .status(400)
+          .json({ error: "Image verification code is required" });
       }
 
       const targetHost = (host || "https://app.nxlink.ai").replace(/\/+$/, "");
@@ -217,6 +265,8 @@ router.post(
           email,
           password,
           loginMethod: 0,
+          graphVerificationCode: captchaCode,
+          key: captchaKey,
           deviceType: "Browser",
           deviceUniqueIdentification: deviceUuid,
         },

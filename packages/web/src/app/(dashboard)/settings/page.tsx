@@ -64,6 +64,10 @@ export default function SettingsPage() {
   const [generatingToken, setGeneratingToken] = useState(false);
   const [tokenGenSuccess, setTokenGenSuccess] = useState("");
   const [tokenGenError, setTokenGenError] = useState("");
+  const [captchaImage, setCaptchaImage] = useState("");
+  const [captchaKey, setCaptchaKey] = useState("");
+  const [captchaCode, setCaptchaCode] = useState("");
+  const [loadingCaptcha, setLoadingCaptcha] = useState(false);
   const [schedulerForm, setSchedulerForm] = useState({
     cronExpression: "0 */6 * * *",
     lookbackHours: 24,
@@ -167,9 +171,37 @@ export default function SettingsPage() {
     }
   };
 
+  const fetchCaptcha = useCallback(async () => {
+    setLoadingCaptcha(true);
+    const token = localStorage.getItem("accessToken");
+    try {
+      const host = apiForm.aiAppUrl || "https://app.nxlink.ai";
+      const res = await fetch(
+        `http://localhost:3009/api/configs/ai-token-captcha?host=${encodeURIComponent(host)}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      const data = await res.json();
+      if (data.success && data.image) {
+        setCaptchaImage(data.image);
+        setCaptchaKey(data.key);
+        setCaptchaCode("");
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      setLoadingCaptcha(false);
+    }
+  }, [apiForm.aiAppUrl]);
+
   const handleGenerateAiToken = async () => {
     if (!genEmail || !genPassword) {
       setTokenGenError("Please enter NXLink admin email and password");
+      return;
+    }
+    if (!captchaCode) {
+      setTokenGenError("Please enter the verification code from the image");
       return;
     }
     setGeneratingToken(true);
@@ -189,6 +221,8 @@ export default function SettingsPage() {
           body: JSON.stringify({
             email: genEmail,
             password: genPassword,
+            captchaCode,
+            captchaKey,
             host,
           }),
         },
@@ -196,6 +230,7 @@ export default function SettingsPage() {
       const data = await res.json();
       if (!res.ok) {
         setTokenGenError(data.error || "Failed to generate token");
+        fetchCaptcha();
         return;
       }
       setApiForm((prev) => ({
@@ -204,8 +239,10 @@ export default function SettingsPage() {
       }));
       setTokenGenSuccess("Token generated and applied");
       setGenPassword("");
+      setCaptchaCode("");
     } catch {
       setTokenGenError("Network error while generating token");
+      fetchCaptcha();
     } finally {
       setGeneratingToken(false);
     }
@@ -418,6 +455,7 @@ export default function SettingsPage() {
                 });
                 setTokenGenSuccess("");
                 setTokenGenError("");
+                fetchCaptcha();
               }}
               className="rounded bg-green-600 px-4 py-2 text-sm text-white transition hover:bg-green-700"
             >
@@ -582,6 +620,51 @@ export default function SettingsPage() {
                             className="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm"
                           />
                         </div>
+                        <div className="sm:col-span-2">
+                          <label className="mb-1 block text-xs font-medium text-gray-600">
+                            Verification Code
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={captchaCode}
+                              onChange={(e) => setCaptchaCode(e.target.value.trim())}
+                              placeholder="Code"
+                              maxLength={6}
+                              className="w-28 rounded border border-gray-300 bg-white px-3 py-1.5 text-sm uppercase"
+                            />
+                            {captchaImage ? (
+                              <button
+                                type="button"
+                                onClick={fetchCaptcha}
+                                title="Click to refresh captcha"
+                                className="h-9 rounded border border-gray-300 overflow-hidden bg-white hover:opacity-80"
+                              >
+                                <img
+                                  src={captchaImage}
+                                  alt="Captcha"
+                                  className="h-full object-contain"
+                                />
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={fetchCaptcha}
+                                className="text-xs text-blue-600 hover:underline"
+                              >
+                                {loadingCaptcha ? "Loading..." : "Load Captcha"}
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={fetchCaptcha}
+                              className="text-xs text-gray-500 hover:text-gray-700 px-1"
+                              title="Refresh code"
+                            >
+                              ↻
+                            </button>
+                          </div>
+                        </div>
                       </div>
                       <div className="mt-3 flex items-center gap-3">
                         <button
@@ -730,6 +813,7 @@ export default function SettingsPage() {
                             });
                             setTokenGenSuccess("");
                             setTokenGenError("");
+                            fetchCaptcha();
                           }}
                           className="mr-2 text-gray-600 hover:text-gray-800"
                         >
